@@ -20,7 +20,7 @@ This extension is particularly useful in larger Vue projects where tracing compo
 
 ## Installation
 
-**1. From VS Code Marketplace (Once Published)**
+**1. From VS Code Marketplace**
 
 *   Open the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`).
 *   Search for `Vue URL Finder` (or by publisher name: `<your-publisher-name>.vue-url-finder`).

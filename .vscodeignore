@@ -1,9 +1,7 @@
 .vscode/**
 .vscode-test/**
-node_modules/**
-src/** # Exclude source TS if you only ship compiled JS
+src/**
 tsconfig.json
-devbox.json
 .direnv/**
 .envrc
 *.vsix
@@ -13,4 +11,4 @@ devbox.json
 .gitattributes
 .gitignore
 
-out/**/*.map # Exclude source maps from published package (optional)
+out/**/*.map
