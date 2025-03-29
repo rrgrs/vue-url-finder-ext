@@ -33,7 +33,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build": "node ./esbuild.config.js",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "dependencies": {
     "@typescript-eslint/types": "^8.28.0",
