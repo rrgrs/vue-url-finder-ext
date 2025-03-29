@@ -1,14 +1,14 @@
-.vscode/**
-.vscode-test/**
-src/**
-tsconfig.json
-.direnv/**
-.envrc
-*.vsix
-*.log
-.DS_Store
-.git
-.gitattributes
-.gitignore
+node_modules/**
 
-out/**/*.map
+src/**
+out/**
+
+esbuild.config.js
+tsconfig.json
+yarn.lock
+package-lock.json
+
+.vscode/**
+.git/**
+.gitignore
+*.vsix

@@ -1,18 +1,17 @@
 {
-    "version": "0.2.0",
+    "version": "0.1.1",
     "configurations": [
       {
         "name": "Run Extension",
-        "type": "extensionHost", // IMPORTANT: Type must be 'extensionHost'
+        "type": "extensionHost",
         "request": "launch",
         "args": [
           "--extensionDevelopmentPath=${workspaceFolder}"
         ],
         "outFiles": [
-          "${workspaceFolder}/out/**/*.js" // Points to compiled JS
+          "${workspaceFolder}/dist/**/*.js"
         ],
-        "preLaunchTask": "${defaultBuildTask}" // Usually runs the default build task (tsc)
+        "preLaunchTask": "npm: build"
       }
-      // You might also have a "Test Extension" configuration
     ]
   }

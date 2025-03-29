@@ -11,14 +11,14 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "vueUsageFinder.findUsage",
         "title": "Vue Usage: Find URL Usage"
       },
-      { 
+      {
         "command": "vueUsageFinder.clearCache",
         "title": "Vue Usage: Clear Cache"
       }
@@ -29,8 +29,10 @@
     "url": "https://github.com/rrgrs/vue-url-finder-ext.git"
   },
   "scripts": {
+    "vscode:prepublish": "npm run build",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "build": "node ./esbuild.config.js",
     "lint": "eslint src --ext ts"
   },
   "dependencies": {
@@ -42,6 +44,7 @@
     "@types/glob": "^8.1.0",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
+    "esbuild": "^0.25.1",
     "typescript": "^5.0.0"
   }
 }

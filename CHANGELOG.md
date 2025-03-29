@@ -4,6 +4,7 @@
 
 ### Added
 - Resolve dependency issue that didn't allow extension to run.
+- Use esbuild to bundle extension.
 
 
 ## [0.1.0] - 2025-03-29
