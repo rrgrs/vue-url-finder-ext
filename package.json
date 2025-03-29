@@ -1,0 +1,41 @@
+{
+  "name": "vue-url-finder",
+  "displayName": "Vue URL Finder",
+  "description": "Finds URL routes where a Vue component is used.",
+  "version": "0.1.0",
+  "publisher": "rrgrs",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vueUsageFinder.findUsage",
+        "title": "Vue Usage: Find URL Usage"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rrgrs/vue-url-finder-ext.git"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/types": "^8.28.0",
+    "@typescript-eslint/typescript-estree": "^8.28.0",
+    "glob": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}

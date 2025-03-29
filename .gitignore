@@ -1,0 +1,95 @@
+# --- General ---
+# Operating System Files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Log files
+*.log
+logs
+*.log.*
+
+# Temporary files
+*.tmp
+*.temp
+
+# --- Node.js / pnpm ---
+# Dependency directory
+node_modules/
+
+# Lockfile (Usually commit pnpm-lock.yaml for applications/extensions)
+# If you have specific reasons not to, add it here:
+# pnpm-lock.yaml
+
+# pnpm debug log
+pnpm-debug.log*
+
+# npm cache files
+.npm
+.npmrc
+
+# Yarn cache files (if used accidentally)
+.yarn/
+.pnp.*
+
+# --- TypeScript ---
+# Compiled output directory (from tsconfig.json's "outDir")
+out/
+
+# Build info cache file
+*.tsbuildinfo
+
+# Source maps (Optional: exclude if you don't want them in Git history)
+# *.js.map
+# *.js.map.gz
+
+# --- VS Code ---
+# User-specific settings and state (allow shared settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# VS Code Extension Test Output/Cache
+.vscode-test/
+
+# Packaged extension file
+*.vsix
+
+# --- Devbox ---
+# Internal directory for generated files, cache, etc.
+.devbox/
+
+# Devbox lockfile (Usually commit devbox.lock for reproducible environments)
+# If you have specific reasons not to, add it here:
+# devbox.lock
+
+# --- direnv ---
+# Internal directory for environment cache/state
+.direnv/
+
+# Environment variable files (secrets!)
+# IMPORTANT: NEVER commit files with secrets.
+.env
+.env.*
+!.env.example # Allow example files to be committed
+
+# --- Git ---
+# Ignore git attributes file if not used intentionally
+.gitattributes
+
+# --- Other Potential Files ---
+# Coverage reports
+coverage/
+lcov.info
+*.lcov
+
+# IDE specific files (if others are used)
+.idea/
+*.iml
+
+# Compressed files (unless they are part of distribution)
+# *.zip
+# *.tar.gz
