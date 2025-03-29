@@ -42,31 +42,70 @@ function getComponentFilenameFromNode(componentNode: TSESTree.Expression | TSEST
 
     // Case 1: component: Identifier (e.g., component: Admin)
     if (componentNode.type === AST_NODE_TYPES.Identifier) {
-        return variableToFilenameMap.get(componentNode.name) ?? null;
-    }
-
-    // Case 2: component: () => import('./path/File.vue')
-    if (componentNode.type === AST_NODE_TYPES.ArrowFunctionExpression && componentNode.body.type === AST_NODE_TYPES.ImportExpression) {
-        const importSource = componentNode.body.source;
-        if (importSource.type === AST_NODE_TYPES.Literal && typeof importSource.value === 'string' && importSource.value.endsWith('.vue')) {
-            return path.basename(importSource.value);
+        const filename = variableToFilenameMap.get(componentNode.name);
+        if (filename) {
+             console.log(`[AST Comp Resolve] Resolved Identifier '${componentNode.name}' to filename '${filename}'`);
+             return filename;
+        } else {
+             console.log(`[AST Comp Resolve] Identifier '${componentNode.name}' not found in variable map.`);
+             return null;
         }
     }
 
-     // Case 3: Could potentially be defineAsyncComponent, etc. (Add more checks if needed)
-     // Example for defineAsyncComponent(() => import(...))
+    // Case 2: component: () => import('./path/MaybeFile.vue')
+    if (componentNode.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+        if (componentNode.body.type === AST_NODE_TYPES.ImportExpression) {
+            const importSource = componentNode.body.source;
+            if (importSource.type === AST_NODE_TYPES.Literal && typeof importSource.value === 'string') {
+                 // ONLY return if it explicitly ends with .vue
+                 if (importSource.value.endsWith('.vue')) {
+                     const filename = path.basename(importSource.value);
+                     console.log(`[AST Comp Resolve] Resolved ArrowFunc Import '${importSource.value}' to filename '${filename}'`);
+                     return filename;
+                 } else {
+                     // It's an arrow function import, but not a .vue file (e.g., index.ts)
+                     console.log(`[AST Comp Resolve] Ignoring ArrowFunc Import of non-Vue file: '${importSource.value}'`);
+                     return null; // Ignore non-vue imports silently
+                 }
+            }
+        }
+        // --- ADDED Check for import().then() ---
+        else if (componentNode.body.type === AST_NODE_TYPES.CallExpression &&
+                 componentNode.body.callee.type === AST_NODE_TYPES.MemberExpression &&
+                 componentNode.body.callee.object.type === AST_NODE_TYPES.ImportExpression &&
+                 componentNode.body.callee.property.type === AST_NODE_TYPES.Identifier &&
+                 componentNode.body.callee.property.name === 'then')
+        {
+             // It's an import(...).then(...) structure. We could try parsing the .then()
+             // callback, but for now, let's just ignore it as it's complex and might not yield a simple filename.
+             console.log(`[AST Comp Resolve] Ignoring ArrowFunc with import().then() structure.`);
+             return null;
+        }
+         // --- END ADDED Check ---
+    }
+
+     // Case 3: defineAsyncComponent(() => import(...))
      if (componentNode.type === AST_NODE_TYPES.CallExpression && componentNode.callee.type === AST_NODE_TYPES.Identifier && componentNode.callee.name === 'defineAsyncComponent' && componentNode.arguments.length > 0) {
          const arg = componentNode.arguments[0];
           if (arg.type === AST_NODE_TYPES.ArrowFunctionExpression && arg.body.type === AST_NODE_TYPES.ImportExpression) {
              const importSource = arg.body.source;
-             if (importSource.type === AST_NODE_TYPES.Literal && typeof importSource.value === 'string' && importSource.value.endsWith('.vue')) {
-                 return path.basename(importSource.value);
+             if (importSource.type === AST_NODE_TYPES.Literal && typeof importSource.value === 'string') {
+                  // ONLY return if it explicitly ends with .vue
+                  if (importSource.value.endsWith('.vue')) {
+                      const filename = path.basename(importSource.value);
+                      console.log(`[AST Comp Resolve] Resolved defineAsyncComponent Import '${importSource.value}' to filename '${filename}'`);
+                      return filename;
+                  } else {
+                       console.log(`[AST Comp Resolve] Ignoring defineAsyncComponent Import of non-Vue file: '${importSource.value}'`);
+                       return null; // Ignore non-vue imports silently
+                  }
              }
          }
      }
 
-
-    console.warn(`[AST] Unsupported component definition type: ${componentNode.type}`);
+    // Removed the generic warning as it's often just noise for valid non-component imports/structures
+    // console.warn(`[AST] Unsupported or ignored component definition type: ${componentNode.type}`);
+    console.log(`[AST Comp Resolve] Unsupported or ignored component definition type: ${componentNode.type}`); // Keep as log for debugging
     return null;
 }
 
@@ -81,7 +120,7 @@ function processRoutesAst(
 
     for (const element of routesArrayNode.elements) {
         if (element?.type !== AST_NODE_TYPES.ObjectExpression) {
-            // console.warn(`[AST ${path.basename(routerFilePath)}] Skipping non-object element in routes array:`, element?.type);
+            // console.warn(`[AST ${routerFilePath}] Skipping non-object element in routes array:`, element?.type);
             continue; // Skip nulls or non-objects in the array
         }
 
@@ -104,7 +143,7 @@ function processRoutesAst(
                 if (typeof pathValue === 'string') {
                     currentSegment = pathValue;
                 } else {
-                     console.warn(`[AST ${path.basename(routerFilePath)}] Non-string literal found for 'path':`, valueNode.type);
+                     console.warn(`[AST ${routerFilePath}] Non-string literal found for 'path':`, valueNode.type);
                 }
             } else if (keyName === 'component') {
                 if (valueNode.type === AST_NODE_TYPES.Identifier || valueNode.type === AST_NODE_TYPES.ArrowFunctionExpression || valueNode.type === AST_NODE_TYPES.CallExpression) {
@@ -112,7 +151,7 @@ function processRoutesAst(
                 }
                  if (!componentFilename) {
                      // Optional: Log if component wasn't resolvable
-                     // console.warn(`[AST ${path.basename(routerFilePath)}] Could not resolve component filename for path segment '${currentSegment}'. Node type: ${valueNode.type}`);
+                     // console.warn(`[AST ${routerFilePath}] Could not resolve component filename for path segment '${currentSegment}'. Node type: ${valueNode.type}`);
                  }
             } else if (keyName === 'children' && valueNode.type === AST_NODE_TYPES.ArrayExpression) {
                 childrenNode = valueNode;
@@ -136,11 +175,11 @@ function processRoutesAst(
              // Normalize just in case (remove double slashes etc.)
              fullPath = path.posix.normalize(fullPath);
 
-            console.log(`[AST ${path.basename(routerFilePath)}] Found Route: FullPath='${fullPath}', Component='${componentFilename}'`);
+            console.log(`[AST ${routerFilePath}] Found Route: FullPath='${fullPath}', Component='${componentFilename}'`);
             extractedRoutes.push({ fullPath, componentFilename });
         } else if (currentSegment !== null && componentFilename === null) {
              // Log routes with paths but no resolvable component if desired for debugging
-            // console.log(`[AST ${path.basename(routerFilePath)}] Found route with path '${currentSegment}' but no resolvable component filename.`);
+            // console.log(`[AST ${routerFilePath}] Found route with path '${currentSegment}' but no resolvable component filename.`);
         }
 
         // --- Process Children Recursively ---
@@ -167,99 +206,196 @@ function processRoutesAst(
 }
 
 async function parseRouterFileAst(routerFilePath: string): Promise<RouteInfo[]> {
-    console.log(`[AST] Parsing router file: ${routerFilePath}`);
+    const logPrefix = `[AST ${routerFilePath}]`;
+    console.log(`${logPrefix} Parsing router file: ${routerFilePath}`);
     try {
         const fileContent = await fs.readFile(routerFilePath, 'utf-8');
-        // Enable JSX parsing in case it's used within templates, although less common in router files
-        const ast = parse(fileContent, { jsx: true, loc: false, range: false, errorOnUnknownASTType: false, useJSXTextNode: false });
+        // Try disabling JSX if it's definitely not used in router files
+        const ast = parse(fileContent, { jsx: false, loc: false, range: false, errorOnUnknownASTType: false, useJSXTextNode: false });
 
         const variableToFilenameMap = new Map<string, string>();
         let routesArrayNode: TSESTree.ArrayExpression | null = null;
-        let routerVariableName: string | null = null; // Track the variable name if router is assigned first
+        let routesIdentifierName: string | null = null;
+        let routerVariableName: string | null = null;
+        let potentialRoutesValueNode: TSESTree.Expression | null = null; // Track the node found
 
-        // --- Traverse AST ---
+        console.log(`${logPrefix} Starting AST traversal...`);
+
+        // --- First Pass: Find potential routes node (Array or Identifier) and imports ---
         for (const node of ast.body) {
-            // 1. Find Imports (same as before)
+            console.log(`${logPrefix} Processing Top Level Node Type: ${node.type}`);
+
+            // 1. Find Imports
             if (node.type === AST_NODE_TYPES.ImportDeclaration && node.source.type === AST_NODE_TYPES.Literal && typeof node.source.value === 'string' && node.source.value.endsWith('.vue')) {
                 if (node.specifiers.length > 0 && node.specifiers[0].type === AST_NODE_TYPES.ImportDefaultSpecifier) {
                     const variableName = node.specifiers[0].local.name;
                     const filename = path.basename(node.source.value);
                     variableToFilenameMap.set(variableName, filename);
+                    console.log(`${logPrefix} Mapped import variable '${variableName}' to '${filename}'`);
                 }
             }
 
-            // 2. Find 'const router = createRouter({ ... routes: [...] })'
+            // 2. Find 'const router = createRouter({ ... routes: ROUTES / [...] })'
             if (node.type === AST_NODE_TYPES.VariableDeclaration) {
+                console.log(`${logPrefix} Found VariableDeclaration.`);
                 for (const declaration of node.declarations) {
                     if (declaration.id.type === AST_NODE_TYPES.Identifier && declaration.init?.type === AST_NODE_TYPES.CallExpression) {
                         const callExpr = declaration.init;
-                        // Check if it's likely createRouter call (can be improved by checking callee name)
-                        if (callExpr.arguments.length > 0 && callExpr.arguments[0].type === AST_NODE_TYPES.ObjectExpression) {
+                        // Basic check for createRouter (improve if needed)
+                        if (callExpr.callee.type === AST_NODE_TYPES.Identifier /* && callExpr.callee.name === 'createRouter' */ && callExpr.arguments.length > 0 && callExpr.arguments[0].type === AST_NODE_TYPES.ObjectExpression) {
+                             console.log(`${logPrefix} Found potential createRouter call in variable '${declaration.id.name}'.`);
                             const configObject = callExpr.arguments[0];
                             const routesProp = configObject.properties.find(p =>
                                 p.type === AST_NODE_TYPES.Property &&
                                 p.key.type === AST_NODE_TYPES.Identifier &&
-                                p.key.name === 'routes' &&
-                                p.value.type === AST_NODE_TYPES.ArrayExpression
-                            ) as TSESTree.Property | undefined; // Type assertion
+                                p.key.name === 'routes'
+                            ) as TSESTree.Property | undefined;
 
                             if (routesProp) {
-                                routesArrayNode = routesProp.value as TSESTree.ArrayExpression; // Store the routes node
-                                routerVariableName = declaration.id.name; // Store the variable name ('router')
-                                console.log(`[AST ${path.basename(routerFilePath)}] Found 'routes' array assigned to variable '${routerVariableName}'.`);
-                                // Don't break yet, need to check export later
+                                console.log(`${logPrefix} Found 'routes' property in createRouter call.`);
+                                if (routesProp.value.type === AST_NODE_TYPES.ArrayExpression || routesProp.value.type === AST_NODE_TYPES.Identifier) {
+                                    console.log(`${logPrefix} Assigning to potentialRoutesValueNode (type: ${routesProp.value.type})`);
+                                    potentialRoutesValueNode = routesProp.value; // Assign here
+                                } else {
+                                     console.warn(`${logPrefix} 'routes' property value in variable '${declaration.id.name}' assignment has unexpected type: ${routesProp.value.type}.`);
+                                }
+                                // Assign routerVariableName regardless if routesProp was found with expected types
+                                routerVariableName = declaration.id.name;
+                                console.log(`${logPrefix} Set routerVariableName = '${routerVariableName}'. Current potentialRoutesValueNode type = ${potentialRoutesValueNode?.type}`);
+                            } else {
+                                console.log(`${logPrefix} 'routes' property not found in createRouter config object.`);
                             }
                         }
                     }
                 }
             }
 
-            // 3. Find 'export default createRouter({ ... routes: [...] })' (Original Check)
+            // 3. Find 'export default createRouter({ ... })' OR 'export default router;'
             if (node.type === AST_NODE_TYPES.ExportDefaultDeclaration) {
-                // Check if exporting a direct call expression
-                if (node.declaration.type === AST_NODE_TYPES.CallExpression &&
-                    node.declaration.arguments.length > 0 &&
-                    node.declaration.arguments[0].type === AST_NODE_TYPES.ObjectExpression)
-                {
-                    const configObject = node.declaration.arguments[0];
-                    const routesProp = configObject.properties.find(p =>
-                        p.type === AST_NODE_TYPES.Property &&
-                        p.key.type === AST_NODE_TYPES.Identifier &&
-                        p.key.name === 'routes' &&
-                        p.value.type === AST_NODE_TYPES.ArrayExpression
-                    ) as TSESTree.Property | undefined;
+                 console.log(`${logPrefix} Found ExportDefaultDeclaration.`);
+                let declarationToCheck = node.declaration;
 
-                    if (routesProp) {
-                        routesArrayNode = routesProp.value as TSESTree.ArrayExpression;
-                        console.log(`[AST ${path.basename(routerFilePath)}] Found 'routes' array in direct export default.`);
-                        break; // Found it directly exported
+                 // Handle case: export default router;
+                 if (declarationToCheck.type === AST_NODE_TYPES.Identifier && declarationToCheck.name === routerVariableName) {
+                    console.log(`${logPrefix} Confirmed export of tracked variable '${routerVariableName}'. Checking potentialRoutesValueNode...`);
+
+                    const currentNode = potentialRoutesValueNode; // Use a local const for clarity
+
+                    // --- Refined Type Checking ---
+                    if (currentNode === null) {
+                        // Case 1: It was null all along
+                        console.warn(`${logPrefix} Exported variable '${routerVariableName}', but potentialRoutesValueNode is null.`);
+                    } else if (currentNode.type === AST_NODE_TYPES.ArrayExpression) {
+                        // Case 2: It's the Array we want
+                        console.log(`${logPrefix} Assigning potentialRoutesValueNode (Array) to routesArrayNode and breaking.`);
+                        routesArrayNode = currentNode;
+                        break; // Found the definitive routes array via exported variable
+                    } else if (currentNode.type === AST_NODE_TYPES.Identifier) {
+                        // Case 3: It's an Identifier we need to resolve later
+                        console.log(`${logPrefix} Setting routesIdentifierName from potentialRoutesValueNode: '${currentNode.name}'.`);
+                        routesIdentifierName = currentNode.name;
+                        // Don't break - need to potentially find the identifier's definition later
+                    } else {
+                        // Case 4: It's not null, not Array, not Identifier - must be some other Expression type
+                        // Accessing .type here should be safe because we already ruled out null.
+                        const nodeType = (currentNode as TSESTree.Expression).type;
+                        console.warn(`${logPrefix} Exported variable '${routerVariableName}', but potentialRoutesValueNode is an unexpected Expression type (Actual Type: ${nodeType}).`);
                     }
                 }
-                // Check if exporting the variable we tracked earlier
-                else if (routerVariableName && node.declaration.type === AST_NODE_TYPES.Identifier && node.declaration.name === routerVariableName) {
-                    console.log(`[AST ${path.basename(routerFilePath)}] Confirmed export of variable '${routerVariableName}' which contains routes.`);
-                    // We already stored routesArrayNode when finding the variable, so we can break.
-                     break;
+                 // Handle case: export default createRouter(...)
+                 else if (declarationToCheck.type === AST_NODE_TYPES.CallExpression) {
+                      console.log(`${logPrefix} Export default is a CallExpression.`);
+                     // Basic check for createRouter (improve if needed)
+                    if (declarationToCheck.callee.type === AST_NODE_TYPES.Identifier /* && declarationToCheck.callee.name === 'createRouter' */ && declarationToCheck.arguments.length > 0 && declarationToCheck.arguments[0].type === AST_NODE_TYPES.ObjectExpression) {
+                         console.log(`${logPrefix} Export default is a createRouter call.`);
+                        const configObject = declarationToCheck.arguments[0];
+                        const routesProp = configObject.properties.find(p =>
+                            p.type === AST_NODE_TYPES.Property &&
+                            p.key.type === AST_NODE_TYPES.Identifier &&
+                            p.key.name === 'routes'
+                        ) as TSESTree.Property | undefined;
+
+                        if (routesProp) {
+                            console.log(`${logPrefix} Found 'routes' property in export default createRouter.`);
+                            if (routesProp.value.type === AST_NODE_TYPES.ArrayExpression) {
+                                console.log(`${logPrefix} Assigning direct ArrayExpression to routesArrayNode and breaking.`);
+                                routesArrayNode = routesProp.value;
+                                break; // Found the array directly
+                            } else if (routesProp.value.type === AST_NODE_TYPES.Identifier) {
+                                console.log(`${logPrefix} Setting routesIdentifierName from export default createRouter: '${routesProp.value.name}'.`);
+                                routesIdentifierName = routesProp.value.name;
+                                // Don't break - need to potentially find the identifier's definition later
+                            } else {
+                                console.warn(`${logPrefix} 'routes' property value in export default createRouter has unexpected type: ${routesProp.value.type}.`);
+                            }
+                        }  else {
+                            console.log(`${logPrefix} 'routes' property not found in export default createRouter config object.`);
+                        }
+                    }
                 }
             }
-        } // End AST body loop
 
-        console.log(`[AST ${path.basename(routerFilePath)}] Variable Map:`, variableToFilenameMap);
+            // 4. Find 'export default localFunctionName(ROUTES_IDENTIFIER)'
+            if (node.type === AST_NODE_TYPES.ExportDefaultDeclaration &&
+                node.declaration.type === AST_NODE_TYPES.CallExpression &&
+                node.declaration.arguments.length === 1 && // Expecting one argument
+                node.declaration.arguments[0].type === AST_NODE_TYPES.Identifier && // Argument is an identifier
+                node.declaration.callee.type === AST_NODE_TYPES.Identifier) // Callee is an identifier
+            {
+                // This *might* be the pattern export default createRouter(INITIAL_ROUTES)
+                // We don't analyze the function body, just assume the argument IS the routes identifier
+                const potentialRoutesIdentifier = node.declaration.arguments[0].name;
+                console.log(`${logPrefix} Found potential 'export default functionCall(identifier)' pattern. Assuming '${potentialRoutesIdentifier}' is the routes identifier.`);
+                // If we haven't already found routes, store this identifier name
+                if (!routesArrayNode && !routesIdentifierName) {
+                     routesIdentifierName = potentialRoutesIdentifier;
+                }
+                // We might have already found the router variable assignment, so don't overwrite if routesIdentifierName was set there.
+            }
+        } // End First Pass AST body loop
 
-        // 4. Process the routes array if found (either directly or via variable)
+        console.log(`${logPrefix} Finished first pass. routesArrayNode found: ${!!routesArrayNode}, routesIdentifierName: ${routesIdentifierName}`);
+
+        // --- Second Pass (if needed): Find the array if routes were assigned by identifier ---
+        if (!routesArrayNode && routesIdentifierName) {
+            console.log(`${logPrefix} Searching for declaration of identifier '${routesIdentifierName}'...`);
+            for (const node of ast.body) {
+                if (node.type === AST_NODE_TYPES.VariableDeclaration) {
+                    for (const declaration of node.declarations) {
+                        if (declaration.id.type === AST_NODE_TYPES.Identifier && declaration.id.name === routesIdentifierName) {
+                            console.log(`${logPrefix} Found declaration for '${routesIdentifierName}'. Checking initializer...`);
+                            if (declaration.init?.type === AST_NODE_TYPES.ArrayExpression) {
+                                routesArrayNode = declaration.init;
+                                console.log(`${logPrefix} Found ArrayExpression definition for '${routesIdentifierName}'. Assigning to routesArrayNode.`);
+                                break; // Found it
+                            } else {
+                                console.warn(`${logPrefix} Variable '${routesIdentifierName}' used for routes is not initialized with an ArrayExpression. Type: ${declaration.init?.type}`);
+                            }
+                        }
+                    }
+                }
+                if (routesArrayNode) break; // Exit outer loop once found
+            }
+        }
+
+        console.log(`${logPrefix} Variable Map:`, variableToFilenameMap);
+
+        // --- Process the routes array if found ---
         if (routesArrayNode) {
-            return processRoutesAst(routesArrayNode, variableToFilenameMap, '', routerFilePath);
+            console.log(`${logPrefix} Proceeding to process resolved routes array.`);
+            return processRoutesAst(routesArrayNode, variableToFilenameMap, '', routerFilePath); // Pass basename here too
         } else {
-            console.warn(`[AST ${path.basename(routerFilePath)}] Could not find 'routes' array in any expected structure.`);
+            console.warn(`${logPrefix} Could not find or resolve 'routes' array in the expected structure.`);
             return [];
         }
 
     } catch (err) {
+        // Log error with prefix
         if (err instanceof Error) {
-            console.error(`[AST] Error parsing ${routerFilePath}: ${err.message}`, err.stack);
-            vscode.window.showErrorMessage(`Failed to parse router file ${path.basename(routerFilePath)}. Check console for details.`);
+            console.error(`${logPrefix} Error parsing ${routerFilePath}: ${err.message}`, err.stack);
+            vscode.window.showErrorMessage(`Failed to parse router file ${routerFilePath}. Check console for details.`);
         } else {
-            console.error(`[AST] Unknown error parsing ${routerFilePath}: ${String(err)}`);
+            console.error(`${logPrefix} Unknown error parsing ${routerFilePath}: ${String(err)}`);
         }
         return [];
     }
@@ -293,26 +429,21 @@ async function buildImporterMapAst(workspaceRoot: string): Promise<ImporterMap> 
     let scannedCount = 0;
     for (const importerFilePath of vueFiles) {
         const importerFilename = path.basename(importerFilePath);
+
         try {
             const content = await fs.readFile(importerFilePath, 'utf-8');
-
-            // Basic check for <script> tags - a full SFC parser (@vue/compiler-sfc) is better
             const scriptContentMatch = content.match(/<script(?: setup)?(?:\s+lang=["']ts["'])?>([\s\S]*?)<\/script>/);
             if (!scriptContentMatch || !scriptContentMatch[1]) {
-                // console.log(`[AST Importer] No script tag found in ${importerFilename}`);
-                continue; // Skip files without script tags
+                continue;
             }
             const scriptContent = scriptContentMatch[1];
 
-            // Parse the script content
             const ast = parse(scriptContent, { jsx: false, loc: false, range: false, errorOnUnknownASTType: false, useJSXTextNode: false });
 
-            // Traverse the AST to find imports
+            // Traverse the AST to find imports (existing loop)
             for (const node of ast.body) {
                 if (node.type === AST_NODE_TYPES.ImportDeclaration && node.source.type === AST_NODE_TYPES.Literal && typeof node.source.value === 'string') {
                      const importSource = node.source.value;
-                     // Check if it looks like a component import (ends in .vue)
-                     // This check might need refinement based on project conventions
                      if (importSource.endsWith('.vue')) {
                          const importedFilename = path.basename(importSource);
                          if (importedFilename) {
@@ -323,20 +454,20 @@ async function buildImporterMapAst(workspaceRoot: string): Promise<ImporterMap> 
                          }
                      }
                 }
-                 // TODO: Add checks for defineAsyncComponent, require, etc. if necessary
-            }
+            } // End inner loop (nodes in body)
+
             scannedCount++;
             if (scannedCount % 100 === 0) console.log(`[AST Importer] Scanned ${scannedCount} files...`);
 
         } catch (err) {
-            // Log parsing errors for script blocks but continue
             if (err instanceof Error) {
                  console.warn(`[AST Importer] Could not read or parse script in ${importerFilePath}: ${err.message}`);
             } else {
                  console.warn(`[AST Importer] Could not read or parse script in ${importerFilePath}: ${String(err)}`);
             }
         }
-    }
+    } // End outer loop (files)
+
     console.log(`[AST] Importer map built. Found importers for ${importerMap.size} components.`);
     return importerMap;
 }

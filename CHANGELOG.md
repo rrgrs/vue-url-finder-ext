@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.1.2] - 2025-03-29
+
+### Added
+- Modify router parsing code to fix specific issue with some of the routers.
+
+
 ## [0.1.1] - 2025-03-29
 
 ### Added

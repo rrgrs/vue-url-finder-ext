@@ -2,7 +2,7 @@
   "name": "vue-url-finder",
   "displayName": "Vue URL Finder",
   "description": "Finds URL routes where a Vue component is used.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "rrgrs",
   "engines": {
     "vscode": "^1.80.0"
