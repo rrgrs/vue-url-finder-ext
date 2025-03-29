@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.1.1] - 2025-03-29
+
+### Added
+- Resolve dependency issue that didn't allow extension to run.
+
+
 ## [0.1.0] - 2025-03-29
 
 ### Added
